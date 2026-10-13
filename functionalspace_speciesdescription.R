@@ -11,8 +11,7 @@ library(funspace)
 library(ape)
 library(phytools)
 library(ggpubr)
-
-### TESTAR CORRELACAO ECO x MORPHO
+library(geometry)
 
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -141,6 +140,20 @@ amphibians_morph2 = amphibians_morph  %>%
                   TL = case_when(scientificName == "Dryophytes japonicus" ~ NA, .default = TL),
                   IMT = case_when(scientificName == "Boophis quasiboehmei" ~ NA, .default = IMT),
                   UEW = case_when(scientificName == "Oreolalax liangbeiensis" ~ NA, .default = UEW),
+                  SVL =  case_when(scientificName == "Amolops chunganensis" ~ 38.9, .default = SVL),
+                  HL =  case_when(scientificName == "Amolops chunganensis" ~ 14.5, .default = HL),
+                  HW =  case_when(scientificName == "Amolops chunganensis" ~ 13.2, .default = HW),
+                  SL =  case_when(scientificName == "Amolops chunganensis" ~ 6.1, .default = SL),
+                  IND =  case_when(scientificName == "Amolops chunganensis" ~ 4.6, .default = IND),
+                  IOD =  case_when(scientificName == "Amolops chunganensis" ~ 4, .default = IOD),
+                  ED =  case_when(scientificName == "Amolops chunganensis" ~ 5, .default = ED),
+                  UEW =  case_when(scientificName == "Amolops chunganensis" ~ 3.7, .default = UEW),
+                  TD =  case_when(scientificName == "Amolops chunganensis" ~ 2.7, .default = TD),
+                  HAL =  case_when(scientificName == "Amolops chunganensis" ~ 12, .default = HAL),
+                  Fin3DW =  case_when(scientificName == "Amolops chunganensis" ~ 1.9, .default = Fin3DW),
+                  THL =  case_when(scientificName == "Amolops chunganensis" ~ 20.5, .default = THL),
+                  TL =  case_when(scientificName == "Amolops chunganensis" ~ 22.5, .default = TL),
+                  FL =  case_when(scientificName == "Amolops chunganensis" ~ 20.4, .default = FL),
                   TD = case_when(TD == 0 ~ NA, .default = TD)) %>% 
     dplyr::filter(scientificName != "Dryophytes japonicus",
                   scientificName != "Hyla savignyi") %>% 
@@ -245,14 +258,14 @@ sp_dist_amphibians <- mFD::funct.dist(
 
 class(sp_dist_amphibians)
 
-# write_rds(sp_dist_amphibians, "sp_dist_amphibians_14052026_filtered.RDS") # _filtered if species with only SVL were excluded
+# write_rds(sp_dist_amphibians, "sp_dist_amphibians_20052026_filtered.RDS") # _filtered if species with only SVL were excluded
 
-# sp_dist_amphibians = read_rds("sp_dist_amphibians_14052026_filtered.RDS")
+sp_dist_amphibians = read_rds("sp_dist_amphibians_20052026_filtered.RDS")
 
 
 fspaces_quality_amphibians = mFD::quality.fspaces(
   sp_dist             = sp_dist_amphibians,
-  maxdim_pcoa         = 4,
+  maxdim_pcoa         = 10,
   deviation_weighting = "absolute",
   fdist_scaling       = FALSE,
   fdendro             = "average")
@@ -269,22 +282,23 @@ sp_faxes_coord_amphibians_all = fspaces_quality_amphibians$"details_fspaces"$"sp
   dplyr::mutate(scientificName = rownames(.)) %>% 
   dplyr::left_join(amphibians_tax) 
 
-eigenvals = fspaces_quality_amphibians$details_fspaces$pc_eigenvalues$Eigenvalues
+eigen_df = fspaces_quality_amphibians$details_fspaces$pc_eigenvalues
 
-variance_pct = (eigenvals / sum(eigenvals)) * 100
-print(round(variance_pct[1:4], 2))
-sum(variance_pct$Rel_corr_eig)
+# 1. Isolate the individual percentages (Relative_eig * 100)
+pc1_var <- round(eigen_df$Relative_eig[1] * 100, 2)
+pc2_var <- round(eigen_df$Relative_eig[2] * 100, 2)
+pc3_var <- round(eigen_df$Relative_eig[3] * 100, 2)
+pc4_var <- round(eigen_df$Relative_eig[4] * 100, 2)
 
-pc1_var <- round(variance_pct[1], 2)
-pc2_var <- round(variance_pct[2], 2)
+# 2. Calculate the Cumulative Variance Explained
+# (Or pull directly from a cumulative sum of Relative_eig)
+cumulative_4d <- round(sum(eigen_df$Relative_eig[1:4]) * 100, 2)
 
-cat("PC1 explains", pc1_var, "% of the variance.\n")
-cat("PC2 explains", pc2_var, "% of the variance.")
 
-# write.csv(sp_faxes_coord_amphibians_all, "sp_faxes_coord_amphibians_all_13052026_filtered.csv")
-sp_faxes_coord_amphibians_all = read.csv("sp_faxes_coord_amphibians_all_13052026_filtered.csv")
+# write.csv(sp_faxes_coord_amphibians_all, "sp_faxes_coord_amphibians_all_20052026_filtered.csv")
+sp_faxes_coord_amphibians_all = read.csv("sp_faxes_coord_amphibians_all_20052026_filtered.csv")
 
-sp_faxes_coord_amphibians0 = read.csv("sp_faxes_coord_amphibians_all_13052026_filtered.csv") %>% 
+sp_faxes_coord_amphibians0 = read.csv("sp_faxes_coord_amphibians_all_20052026_filtered.csv") %>% 
   dplyr::select(2:6) 
 
 row.names(sp_faxes_coord_amphibians0) = sp_faxes_coord_amphibians0$scientificName
@@ -325,7 +339,7 @@ big_plot[1]
 
 
 alpha_fd_indices_amphibians = mFD::alpha.fd.multidim(
-  sp_faxes_coord   = sp_faxes_coord_amphibians[ , c("PC1", "PC2")],
+  sp_faxes_coord   = sp_faxes_coord_amphibians[ , c("PC1", "PC2", "PC3", "PC4")], #changed in 13/10
   asb_sp_w         = amphibians_tax_weights,
   ind_vect         = c("fric"), #"fdis", "feve", "fric", "fdiv"
   scaling          = TRUE,
@@ -334,21 +348,40 @@ alpha_fd_indices_amphibians = mFD::alpha.fd.multidim(
 
 alpha_fd_indices_amphibians$functional_diversity_indices
 
+trait_axes_corr_all = mFD::traits.faxes.cor(
+  sp_faxes_coord = sp_faxes_coord_amphibians[, c("PC1", "PC2","PC3", "PC4")], 
+  sp_tr          = amphibians_morph3_imp2             # Your raw trait data
+)
+
+
+# direction of axes
+cor(amphibians_morph3_imp2$Fin1L, sp_faxes_coord_amphibians[, "PC1"], method = "pearson")
+cor(amphibians_morph3_imp2$TL, sp_faxes_coord_amphibians[, "PC1"], method = "pearson")
+cor(amphibians_morph3_imp2$HL, sp_faxes_coord_amphibians[, "PC1"], method = "pearson")
+cor(amphibians_morph3_imp2$HAL, sp_faxes_coord_amphibians[, "PC1"], method = "pearson")
+
+cor(amphibians_morph3_imp2$SVL, sp_faxes_coord_amphibians[, "PC2"], method = "pearson")
+cor(amphibians_morph3_imp2$IOD, sp_faxes_coord_amphibians[, "PC2"], method = "pearson")
+
+
+
 trait_axes_corr = mFD::traits.faxes.cor(
   sp_faxes_coord = sp_faxes_coord_amphibians[, c("PC1", "PC2")], 
   sp_tr          = amphibians_morph3_imp2             # Your raw trait data
 )
 
-str(trait_axes_corr)
 
-
+trait_axes_corr2 = mFD::traits.faxes.cor(
+  sp_faxes_coord = sp_faxes_coord_amphibians[, c("PC1", "PC2", "PC3", "PC4")], 
+  sp_tr          = amphibians_morph3_imp2             # Your raw trait data
+)
 
 col_asb1 = "orange3"
 col_asb2 = "#DCE319FF"
 
 plots_alpha = mFD::alpha.multidim.plot(
   output_alpha_fd_multidim = alpha_fd_indices_amphibians,
-  plot_asb_nm              = c("p_2000", "p_2020"),
+  plot_asb_nm              = c("p_2000", "p_2020"), # first one orange
   ind_nm                   = c( "fric"),
   faxes                    = NULL,
   faxes_nm                 = NULL,
@@ -403,7 +436,7 @@ ggplot(alpha_fd_indices_amphibians2, aes(x = year, y = fric)) +
   ylim(c(0.1,1.01))
 
 
-ggsave("fric_year_SuppMat.jpeg")
+ggsave("results/fric_year_SuppMat.jpeg")
 
 plots_alpha$"fdiv"$"patchwork"
 
@@ -417,8 +450,6 @@ amphibians_tax_weights_cum = amphibians_tax_weights %>%
   dplyr::mutate(across(-c(period, year), cummax)) %>% 
   dplyr::select(-year)
 
-amphibians_tax_weights_cum_del = amphibians_tax_weights_cum %>% 
-  dplyr::filter(period == "p_1850")
 
 rowSums(amphibians_tax_weights_cum_del[,-1])
 
@@ -438,9 +469,9 @@ alpha_fd_indices_amphibians = mFD::alpha.fd.multidim(
   details_returned = TRUE)
 
 
-# write_rds(alpha_fd_indices_amphibians, "alpha_fd_indices_amphibians.RDS")
+# write_rds(alpha_fd_indices_amphibians, "alpha_fd_indices_amphibians_20052026.RDS")
 
-alpha_fd_indices_amphibians = readRDS("alpha_fd_indices_amphibians.RDS")
+alpha_fd_indices_amphibians = readRDS("alpha_fd_indices_amphibians_20052026.RDS")
 
 alpha_fd_indices_amphibians_cum = alpha_fd_indices_amphibians$functional_diversity_indices %>% 
   as.data.frame() %>% 
@@ -448,6 +479,8 @@ alpha_fd_indices_amphibians_cum = alpha_fd_indices_amphibians$functional_diversi
   dplyr::mutate(year = as.integer(gsub("p_", "", period))) %>%
   dplyr::arrange(year) 
 
+
+### something wrong
 ggplot(alpha_fd_indices_amphibians_cum, aes(x = year, y = fric)) +
   geom_line(color = "black", linewidth = 1.2) +
   geom_point(color = "#D55E00", size = 4) +
@@ -469,7 +502,7 @@ ggplot(alpha_fd_indices_amphibians_cum, aes(x = year, y = fric)) +
 ggsave("results/cum_fric_morph.jpeg", width = 10)
 
 n_stand = min(alpha_fd_indices_amphibians_cum$sp_richn) 
-n_iter = 999 #same with 999
+n_iter = 99 #same with 999
 
 cum_sp_list <- amphibians_tax_weights_cum %>%
   as.data.frame() %>%
@@ -731,6 +764,9 @@ ggplot() +
 
 #### cumulative funspace ####
 library(tidyverse)
+library(png)
+library(ggpmisc)
+library(grid)
 
 # 1. Reshape the cumulative weights to a long format
 weights_long = amphibians_tax_weights_cum %>%
@@ -749,47 +785,181 @@ hull_data = plot_data %>%
 global_hull_indices <- chull(sp_faxes_coord_amphibians0$PC1, sp_faxes_coord_amphibians0$PC2)
 global_hull_data <- sp_faxes_coord_amphibians0[global_hull_indices, ]
 
-ggplot() +
-  # The points (all species)
-  geom_point(data = sp_faxes_coord_amphibians0, 
-             aes(x = PC1, y = PC2),
-             color = "black", 
-             size = 1, 
-             alpha = 0.4) +
+# loading png
+species_SVL = sp_faxes_coord_amphibians_all %>% 
+  dplyr::filter(scientificName %in% c("Rhinella diptycha", "Hoplobatrachus tigerinus", 
+                                      "Pristimantis mallii", "Hemiphractus panamensis",
+                                      "Stumpffia pygmaea", "Hyla arborea",
+                                      "Elachistocleis corumbaensis", "Ameerega panguana")) %>% 
+  dplyr::select(scientificName, SVL, year_description, realm)
+
+#https://commons.wikimedia.org/wiki/File:Rhinella_diptycha_-_Alessandher_Piva_-_489825971.jpeg
+rdiptycha = readPNG("photos/Rhinella_diptycha3b_CC_openverse.png")
+rdiptycha2 = rasterGrob(rdiptycha, interpolate = TRUE)
+
+
+htigerinus = readPNG("photos/hoplobatrachus_tigerinus1_CC.png")
+htigerinus2 = rasterGrob(htigerinus, interpolate = TRUE)
+
+#https://openverse.org/image/b88c479f-0244-4086-a7e9-79027510ee04?q=Pristimantis+mallii&p=1
+pmallii = readPNG("photos/Pristimantis_malliib_CC_openverse.png")
+pmalliis2 = rasterGrob(pmallii, interpolate = TRUE)
+
+#https://openverse.org/image/63ad53a3-e465-4a97-b004-dead5e4c2718?q=Hemiphractus+panamensis&p=1
+hpanamensis = readPNG("photos/Hemiphractus_panamensis_CC_openverse.png")
+hpanamensis2 = rasterGrob(hpanamensis, interpolate = TRUE)
+
+#https://openverse.org/image/657677cb-9241-43be-b524-4acae6fb8590?q=stumpffia&p=9
+spygmaea = readPNG("photos/Stumpffia_pygmaea_CC_openverse.png")
+spygmaea2 = rasterGrob(spygmaea, interpolate = TRUE)
+
+#https://openverse.org/image/d40e8f46-d487-456c-81bf-2f022162b63e?q=hyla+arborea&p=22
+harborea = readPNG("photos/Hyla_arborea2_CC_openverse.png")
+harborea2 = rasterGrob(harborea, interpolate = TRUE)
+
+#https://openverse.org/image/c5f12d7b-1611-4c43-acb5-34d87fff96a3?q=Elachistocleis+corumbaensis&p=6
+ecorumbaensis = readPNG("photos/Elachistocleis_corumbaensis2_CC_openverse.png")
+ecorumbaensis2 = rasterGrob(ecorumbaensis, interpolate = TRUE)
+
+#https://openverse.org/image/8b7ef0aa-9f4b-448c-a1d7-3ac808f7e23b?q=Ameerega+panguana&p=3
+apanguana = readPNG("photos/Ameerega_panguanab_CC_openverse.png")
+apanguana2 = rasterGrob(apanguana, interpolate = TRUE)
+
+
+arrow_data = data.frame(
+  species = c("rdiptycha", "pmalliis", "hpanamensis", "spygmaea", 
+              "htigerinus", "apanguana", "ecorumbaensis", "harborea"),
   
-  # The single global polygon (outline only)
+  x_start = c(mean(c(0.077, 0.17)),    # rdiptycha
+              mean(c(-0.15, -0.175)),  # pmalliis
+              mean(c(-0.19, -0.11)),   # hpanamensis
+              mean(c(-0.02, -0.05)),   # spygmaea
+              mean(c(-0.05, 0.025)),   # htigerinus
+              mean(c(0.0195, 0.075)),    # apanguana (index 6)
+              mean(c(0.11, 0.145)),    # ecorumbaensis
+              mean(c(-0.085, -0.12))), # harborea (index 8)
+  
+  y_start = c(mean(c(0.055, 0.14)), 
+              mean(c(-0.06, -0.08)), 
+              mean(c(0.03, 0.065)), 
+              mean(c(-0.1, -0.13)), 
+              mean(c(0.075, 0.15)), 
+              mean(c(-0.0495, -0.12)),   
+              mean(c(-0.02, -0.07)), 
+              mean(c(0.075, 0.1))),    
+  
+  x_end = c(0.127788961, -0.15311710, -0.123922, -0.03496657, 0.01997248, -0.01127268, 0.1253435, 0.01122709), 
+  y_end = c(0.046665553, -0.049490361, -0.01523356, -0.08751127, 0.07800946, -0.005591748, -0.003254583, -0.02963529)
+)
+
+
+ ggplot() +
   geom_polygon(data = global_hull_data, 
                aes(x = PC1, y = PC2), 
                fill = NA, 
                color = "#2C3E50", # Using a neutral dark slate color
-               linewidth = 1.2) +
-  
-  # Update labels with your Rel_corr_eig percentages
-  labs(
-    x = "PCA1",
-    y = "PCA2"
+               linewidth = 0.9) +
+  geom_point(data = sp_faxes_coord_amphibians0,
+             aes(x = PC1, y = PC2),
+             color = "black",
+             size = 2.3,
+             alpha = .7) +
+  geom_point(data = sp_faxes_coord_amphibians0 %>% 
+               dplyr::left_join(amphibians_tax %>% 
+                                 dplyr::select(scientificName, year_description)) %>%
+               dplyr::arrange(desc(year_description)),
+             aes(x = PC1, y = PC2, fill = year_description), 
+             shape = 21,
+             size = 2, 
+             alpha = 0.75) +
+  scale_fill_viridis_c(option = "A", name = "Year of\nDescription", direction = 1)  +
+  annotation_custom(
+    grob = rdiptycha2, 
+    xmin = 0.077,  # West boundary (left side)
+    xmax = 0.17,  # East boundary (right side)
+    ymin = 0.055,  # South boundary (bottom)
+    ymax = 0.14   # North boundary (top) 
   ) +
-  
-  theme_minimal() +
+  annotation_custom(
+    grob = pmalliis2,
+    xmin = -0.15,  # West boundary (left side)
+    xmax = -0.175,  # East boundary (right side)
+    ymin = -0.06,  # South boundary (bottom)
+    ymax = -0.08   # North boundary (top)
+  ) +
+   annotation_custom(
+     grob = hpanamensis2, 
+     xmin = -0.19,  # West boundary (left side)
+     xmax = -0.11,  # East boundary (right side)
+     ymin = 0.03,  # South boundary (bottom)
+     ymax = 0.065   # North boundary (top) 
+   ) +
+   annotation_custom(
+     grob = spygmaea2, 
+     xmin = -0.02,  # West boundary (left side)
+     xmax = -0.05,  # East boundary (right side)
+     ymin = -0.1,  # South boundary (bottom)
+     ymax = -0.13   # North boundary (top) 
+   ) +
+   annotation_custom(
+     grob = htigerinus2, 
+     xmin = -0.05,  # West boundary (left side)
+     xmax = 0.025,  # East boundary (right side)
+     ymin = 0.075,  # South boundary (bottom)
+     ymax = 0.15   # North boundary (top) 
+   ) +
+   annotation_custom(
+     grob = apanguana2, 
+     xmin = 0.02,  # West boundary (left side)
+     xmax = 0.075,  # East boundary (right side)
+     ymin = -0.05,  # South boundary (bottom)
+     ymax = -0.12   # North boundary (top) 
+   ) +
+   annotation_custom(
+     grob = ecorumbaensis2, 
+     xmin = 0.11,  # West boundary (left side)
+     xmax = 0.145,  # East boundary (right side)
+     ymin = -0.02,  # South boundary (bottom)
+     ymax = -0.07   # North boundary (top) 
+   ) +
+   annotation_custom(
+     grob = harborea2, 
+     xmin = -0.075,  # West boundary (left side)
+     xmax = -0.12,  # East boundary (right side)
+     ymin = 0.055,  # South boundary (bottom)
+     ymax = 0.1   # North boundary (top) 
+   ) +
+   geom_segment(data = arrow_data,
+                aes(x = x_start + 0.1*(x_end - x_start), 
+                    y = y_start + 0.1*(y_end - y_start), 
+                    xend = x_end - 0.05*(x_end - x_start), 
+                    yend = y_end - 0.05*(y_end - y_start)),
+                arrow = arrow(length = unit(0.15, "cm"), type = "closed"),
+                color = "grey40", linewidth = 0.4) +
+
+  labs(
+    x = "PC1",
+    y = "PC2"
+  ) +
+   
+  theme_minimal(base_size = 16) +
   theme(
-    legend.position = "none", # Remove legend since there are no periods
+    legend.position = "inside",
+    legend.position.inside = c(0.84, 0.02),
+    legend.justification = c(0, 0),
+    legend.background = element_rect(fill = "white", color = NA),
     panel.grid = element_blank(),
     axis.line = element_line(color = "black")
-  )
+  ) +
+  xlim(c(-0.17, 0.15)) +
+  ylim(c(-0.15, 0.12))
 
-ggsave("results/Fig_all_funspace.jpeg", width = 9, height = 9.5)
+ ggsave("results/Fig_all_funspace.jpeg", width = 9, height = 9.5)
 
 
-#general funspace
-ggplot() +
-  # Background: All species in light grey to show the potential total space
-  
-  geom_point(data = sp_faxes_coord_amphibians0, aes(x = PC1, y = PC2),
-             color = "black", size = 2, alpha = 0.9) +
-  geom_polygon(data = sp_faxes_coord_amphibians0, aes(x = PC1, y = PC2), fill = NA,
-               alpha = 0.3, linewidth = 1.8) 
 
-#cum funspace
+
+#cum funspace - SupMat
 ggplot() +
   # Background: All species in light grey to show the potential total space
   
@@ -810,25 +980,66 @@ ggplot() +
   ) +
   theme_minimal() +
   theme(
-    legend.position = "right",
+    legend.position = "inside",
+    legend.position.inside = c(0.84, 0.02),
+    legend.justification = c(0, 0),
+    legend.background = element_rect(fill = "white", color = NA),
     panel.grid = element_blank(),
     axis.line = element_line(color = "black")
   ) 
 
-ggsave("results/Fig_cumulative_funspace.jpeg", width = 9, height = 9.5)
+ggsave("results/Fig_cumulative_funspace_SupMat.jpeg", width = 9, height = 9.5)
+
+
+
 
 ##### spatial patterns ####
+
+unique(amphibians_tax$realm)
+
+amphibians_tax_weights_spatial = amphibians_tax %>% 
+  dplyr::select(scientificName, realm) %>% 
+  tidyr::separate_longer_delim(realm, delim = "|") %>%
+  dplyr::filter(realm != "Oceanian",
+                realm != "Nearctic",
+                realm != "") %>% 
+  dplyr::mutate(present = 1) %>% 
+  tidyr::pivot_wider(names_from =  scientificName,       
+                     values_from = present,    
+                     id_cols = realm, 
+                     values_fill = 0      
+  ) %>%
+  remove_rownames() %>% column_to_rownames( "realm") #%>%   as.matrix()
+
+
+
+amphibians_tax_weights_spatial2 = amphibians_tax_weights_spatial %>% 
+  as.matrix()
+
+
+alpha_fd_indices_amphibians_spatial = mFD::alpha.fd.multidim(
+  sp_faxes_coord   = sp_faxes_coord_amphibians[ , c("PC1", "PC2", "PC3", "PC4")],
+  asb_sp_w         = amphibians_tax_weights_cum2,
+  ind_vect         = c( "fric"),
+  scaling          = TRUE,
+  check_input      = TRUE,
+  details_returned = TRUE)
+
+(alpha_fd_indices_amphibians_spatial_df = alpha_fd_indices_amphibians_spatial$functional_diversity_indices)
+
+
 
 table(amphibians_tax$realm)
 
 realm_colors = c(
-  "Palearctic"   = "indianred",
-  "Neotropical"  = "plum3",
-  "Afrotropical" = "royalblue2",
-  "Indomalayan"  = "tan",
-  "Australasian" = "orange2"
+  "Afrotropical" = "#0072B2",
+  "Australasian" = "#E69F00",
+  "Indomalayan"  = "#009E73",
+  "Palearctic"   = "#D55E00",
+  "Neotropical"  = "#CC79A7"
 )
 
+realm_name = "Neotropical"
 #### automatic loop beginning ####
 # Loop through each realm name
 for (realm_name in names(realm_colors)) {
@@ -864,6 +1075,36 @@ for (realm_name in names(realm_colors)) {
     deviation_weighting = "absolute")
   
   sp_faxes_coord_amphibians_realm = fspaces_quality_amphibians_realm$details_fspaces$sp_pc_coord 
+  
+  sp_faxes_coord_realm_df = as.data.frame(sp_faxes_coord_amphibians_realm)
+  
+  # Calculate the Convex Hull coordinates for the background shaded area
+  hull_indices = chull(sp_faxes_coord_realm_df$PC1, sp_faxes_coord_realm_df$PC2)
+  hull_data = sp_faxes_coord_realm_df[hull_indices, ]
+  
+  x_axis_color = ifelse(realm_name == "Palearctic", "black", "transparent")
+  
+  # Generate Functional Space Plot with ggplot2
+  p_fspace = ggplot(sp_faxes_coord_realm_df, aes(x = PC1, y = PC2)) +
+    # Shaded Convex Hull
+    geom_polygon(data = hull_data,color = "black", fill = realm_colors[realm_name], alpha = 0.1) +
+    # Species points
+    geom_point(color = "black", fill = realm_colors[realm_name], shape = 21, size = 2, stroke = 0.6) +
+    labs(
+      title = "",
+      x = "PC1",
+      y = "PC2"
+    ) +
+    theme_classic(base_size = 40) +
+    theme(
+      panel.grid.minor = element_blank(), 
+      plot.title = element_text(face = "bold"),
+      axis.title.x = element_text(color = x_axis_color)
+    ) + 
+    ylim(c(-0.15, 0.16)) +
+    xlim(c(-.25, .35)) 
+  
+  ggsave(paste0("results/funspace_", realm_name, ".jpeg"), plot = p_fspace, width = 8, height = 8.5)
   
   # 4. Prepare weights matrix (Occurrence over time)
   amphibians_tax_weights_realm = amphibians_tax %>% 
@@ -916,6 +1157,8 @@ for (realm_name in names(realm_colors)) {
     dplyr::summarise(lower_95 = quantile(fric, 0.025, na.rm = T),
                      upper_95 = quantile(fric, 0.975, na.rm = T),
                      mean_null = mean(fric, na.rm = T))
+
+  x_axis_color = ifelse(realm_name == "Palearctic", "black", "transparent")
   
   # 8. Plot and Save
   p = ggplot(observed_fric_realm, aes(x = period, y = fric)) +
@@ -925,282 +1168,261 @@ for (realm_name in names(realm_colors)) {
     geom_line(color = "black", linewidth = 1) +
     geom_point(color = realm_colors[realm_name], size = 3) +
     geom_line(data = null_envelope_realm, aes(y = mean_null), linetype = "dotted") +
-    labs(title = "", x = "Year", y = "Functional Richness") +
-    theme_classic(base_size = 18) +
-    ylim(c(0,1))
+    theme_classic(base_size = 40) +
+    labs(title = "", x = "Year", y = "")+ 
+    theme(axis.title.x = element_text(color = x_axis_color)) +
+    ylim(c(0,1)) +
+    scale_y_continuous(
+      limits = c(0, 1), 
+      breaks = c(0, 0.5, 1), 
+      labels = c("0", "50", "100")) 
+    
   
-  ggsave(paste0("results/cum_fric_", realm_name, ".jpeg"), plot = p)
+  ggsave(paste0("results/cum_fric_", realm_name, ".jpeg"), plot = p,   width = 8, height = 8.5)
 }
 
 #### automatic loop end ####
 
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(geometry)
+library(vegan)
 
-
-realm_name = "Palearctic"
-
-(species_realm=  amphibians_tax %>%
-  dplyr::filter(grepl(realm_name, realm)) %>%
-  pull(scientificName))
-
-
-amphibians_morph3_realm = amphibians_morph3_imp2 %>% 
-  rownames_to_column("Species") %>% 
-  dplyr::left_join(amphibians_tax %>% 
-                     dplyr::rename(Species = scientificName) %>% 
-                     dplyr::select(Species, realm)) %>% 
-  dplyr::filter(grepl(realm_name, realm)) %>% 
-  dplyr::select(-realm) %>% 
-  column_to_rownames("Species") 
-
-amphibians_morph3_traits_realm = colnames(amphibians_morph3_realm) %>% 
-  as.data.frame() %>% 
-  dplyr::rename(trait_name = 1) %>% 
-  dplyr::mutate(trait_type = "Q")%>% 
-  dplyr::mutate(trait_weight = case_when(trait_name %in% c("UEW", "Fin1L", "Fin2L", "Fin3DW") ~ 0.5,TRUE ~1))
-
-
-amphibians_traits_summ_realm <- mFD::sp.tr.summary(
-  tr_cat     = amphibians_morph3_traits_realm,   
-  sp_tr      = amphibians_morph3_realm, 
-  stop_if_NA = F)
-
-
-
-sp_dist_amphibians_realm <- mFD::funct.dist(
-  sp_tr         = amphibians_morph3_realm,
-  tr_cat        = amphibians_morph3_traits_realm,
-  metric        = "gower",
-  scale_euclid  = "scale_center",
-  ordinal_var   = "classic",
-  weight_type   = "user",
-  stop_if_NA    = F)
-
-fspaces_quality_amphibians_realm = mFD::quality.fspaces(
-  sp_dist             = sp_dist_amphibians_realm,
-  maxdim_pcoa         = 4,
-  deviation_weighting = "absolute",
-  fdist_scaling       = FALSE,
-  fdendro             = "average")
-
-
-sp_faxes_coord_amphibians_realm = fspaces_quality_amphibians_realm$"details_fspaces"$"sp_pc_coord" 
-
-sp_faxes_coord_amphibians_realm_df = sp_faxes_coord_amphibians_realm %>% 
-  as.data.frame()
-
-
-mFD::funct.space.plot(
-  sp_faxes_coord  = sp_faxes_coord_amphibians_realm[ , c("PC1", "PC2", "PC3", "PC4")],
-  faxes           = c("PC1", "PC2", "PC3", "PC4"),
-  name_file       = NULL,
-  faxes_nm        = NULL,
-  range_faxes     = c(NA, NA),
-  color_bg        = "grey99",
-  color_pool      = "black",
-  fill_pool       = "steelblue3",
-  shape_pool      = 21,
-  size_pool       = 2,
-  plot_ch         = TRUE,
-  color_ch        = "black",
-  fill_ch         = "white",
-  alpha_ch        = 0.5,
-  plot_vertices   = F, #change to plot vertices
-  color_vert      = "blueviolet",
-  fill_vert       = "blueviolet",
-  shape_vert      = 23,
-  size_vert       = 1,
-  plot_sp_nm      = NULL,
-  nm_size         = 3,
-  nm_color        = "black",
-  nm_fontface     = "plain",
-  check_input     = TRUE)[1]
-
-ggsave("results/funspace_Palearctic.jpeg")
-
-
-amphibians_tax_weights_realm = amphibians_tax %>% 
-  dplyr::filter(grepl(realm_name, realm)) %>% 
-  dplyr::mutate(present = 1
-  ) %>% 
-  tidyr::pivot_wider(names_from =  scientificName,       
-                     values_from = present,    
-                     id_cols = period, 
-                     values_fill = 0      
-  ) %>%
-  remove_rownames() %>%  na.omit(period) %>%  column_to_rownames("period") %>% 
-  dplyr::mutate(period = rownames(.)) %>% 
-  dplyr::relocate(period) %>% 
-  dplyr::mutate(year = as.integer(gsub("p_", "", period))) %>%
-  dplyr::arrange(year) %>%
-  dplyr::mutate(across(-c(period, year), cummax)) %>% 
-  dplyr::select(-year, -period) %>% 
-  as.matrix()
-
-
-alpha_fd_indices_amphibians_realm = mFD::alpha.fd.multidim(
-  sp_faxes_coord   = sp_faxes_coord_amphibians_realm[ , c("PC1", "PC2")],
-  asb_sp_w         = amphibians_tax_weights_realm,
-  ind_vect         = c( "fric"),
-  scaling          = TRUE,
-  check_input      = TRUE,
-  details_returned = TRUE)
-
-alpha_fd_indices_amphibians_realm$functional_diversity_indices
-
-alpha_fd_indices_amphibians_cum_realm = alpha_fd_indices_amphibians_realm$functional_diversity_indices %>% 
-  as.data.frame() %>% 
-  dplyr::mutate(period = rownames(alpha_fd_indices_amphibians_realm$functional_diversity_indices)) %>% 
-  dplyr::mutate(year = as.integer(gsub("p_", "", period))) %>%
-  dplyr::arrange(year) 
-
-ggplot(alpha_fd_indices_amphibians_cum_realm, aes(x = year, y = fric)) +
-  geom_line(color = "black", linewidth = 1.2) +
-  geom_point(color = "#D55E00", size = 4) +
-  geom_text(aes(label = round(sp_richn, 3)), vjust = -1.5, size = 3.5) +
-  labs(
-    x = "Time Period (Year)",
-    y = "Cumulative Functional Richness"
-  ) +
-  scale_x_continuous(breaks = unique(alpha_fd_indices_amphibians_cum_realm$year)) + 
-  theme_classic(base_size = 15) +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5),
-    axis.title.y = element_text(size = 17),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  ) +
-  ylim(c(0.00,1.03))
-
-# ggsave("results/cum_fric_Indomalayan.jpeg")
-
-
-### null models - spatial ####
-
-N_ITERATIONS <- 99
-null_fric_results_realm <- list()
-
-
-amphibians_tax_weights_realm2 = amphibians_tax_weights_realm %>% 
-  as.data.frame() %>% 
-  rownames_to_column("period")
-
-original_species_names_amph_realm = colnames(amphibians_tax_weights_realm2) %>% 
-  setdiff("period")
-
-period_col_realm = amphibians_tax_weights_realm2$period
-species_data_matrix_realm <- amphibians_tax_weights_realm2 %>% dplyr::select(-period) 
-
-for (i in 1:N_ITERATIONS) {
-  
-  # 1. Randomize the species names
-  shuffled_names_realm <- sample(original_species_names_amph_realm)
-  
-  # 2. Create the null matrix by assigning shuffled names to the data
-  amphibians_matrix_null_realm <- species_data_matrix_realm
-  colnames(amphibians_matrix_null_realm) <- shuffled_names_realm
-  
-  # 3. Re-attach the period column and convert to tibble for mFD compatibility
-  amphibians_matrix_null_realm <- amphibians_matrix_null_realm %>%
-    tibble::add_column(period = period_col_realm, .before = 1) %>%
-    # Convert period column to row names for mFD input
-    tibble::column_to_rownames("period") %>% 
-    as.matrix()
-  
-  
-  # 4. RUN mFD: Pass the randomized matrix as the assemblage data (asb_sp_w)
-  alpha_fd_null_realm = mFD::alpha.fd.multidim(
-    sp_faxes_coord = sp_faxes_coord_amphibians_realm[, c("PC1", "PC2")],
-    asb_sp_w       = amphibians_matrix_null_realm,
-    ind_vect       = c("fric"),
-    scaling        = TRUE,
-    check_input    = TRUE
-  )
-  
-  # 5. STORE RESULTS: Extract the FRic values and store them in the list
-  null_fric_results_realm[[i]] <- alpha_fd_null_realm$functional_diversity_indices %>%
-    tibble::rownames_to_column(var = "asb_nm") %>%
-    # 2. Select only the assemblage names and the FRic values (the 'fric' column)
-    dplyr::select(asb_nm, value = fric) %>%
-    # 3. Rename the 'value' column uniquely for this iteration
-    dplyr::rename(!!paste0("fric_", i) := value)
+ref_val <- global_coords["Bokermannohyla itapoty", "PC2"]
+if (ref_val < 0) {
+  global_coords$PC2 <- global_coords$PC2 * -1
 }
 
-# 6. COMBINE RESULTS: Convert the list of dataframes into a single dataframe
-
-null_fric_df_realm <- purrr::reduce(null_fric_results_realm, dplyr::full_join, by = "asb_nm")
-
-null_tidy_realm = null_fric_df_realm %>%
-  # Gather all the iteration columns into two: a key (fric_1, fric_2, etc.) and a value (the FRic number)
-  tidyr::pivot_longer(
-    cols = starts_with("fric_"),
-    names_to = "iteration",
-    values_to = "fric"
-  ) %>%
-  # Extract the year from the assemblage name (e.g., "p_1900" -> 1900)
-  dplyr::mutate(
-    period = as.numeric(gsub("p_", "", asb_nm))
-  )
+# Secure clean inputs
+global_coords = as.data.frame(sp_faxes_coord_amphibians0[, c("PC1", "PC2", "PC3", "PC4")])
+periods = sort(unique(amphibians_tax$period))
+vertices_indices = geometry::convhulln(global_coords, options = "Tv")
+### direction corrected ####
 
 
-null_envelope_realm = null_tidy_realm %>%
-  dplyr::group_by(period) %>%
-  dplyr::summarise(
-    # Lower bound (2.5th percentile)
-    lower_95 = quantile(fric, 0.025, na.rm = TRUE),
-    # Upper bound (97.5th percentile)
-    upper_95 = quantile(fric, 0.975, na.rm = TRUE),
-    # Mean null curve (for reference)
-    mean_null = mean(fric, na.rm = TRUE)
-  ) %>%
-  dplyr::ungroup()
+# 2. Join with Taxonomy
+vertex_species = unique(as.vector(vertices_indices))
+vertex_data = amphibians_tax[vertex_species, ]
+
+# 3. Table of Realms
+vertex_table = table(vertex_data$realm)
 
 
-observed_fric_realm = alpha_fd_indices_amphibians_cum_realm %>%
-  dplyr::mutate(
-    period = as.numeric(gsub("p_", "", year))
-  ) %>% 
-  dplyr::select(fric, period) 
+period_results = list()
+periods = sort(unique(amphibians_tax$period))
 
 
-ggplot(observed_fric_realm, aes(x = period, y = fric)) +
+
+for (p in periods) {
   
-  # 1. Null Envelope (Shaded Area)
-  geom_ribbon(
-    data = null_envelope_realm,
-    aes(x = period, ymin = lower_95, ymax = upper_95),
-    fill = "burlywood2",
-    alpha = 0.3,
-    inherit.aes = FALSE # Prevents inheriting the observed aesthetic
-  ) +
-  # 3. Observed Curve (Solid Line and Points)
-  geom_line(color = "black", linewidth = 1, alpha = .8) +
-  geom_point(color = "darkblue", size = 4, alpha = .4) +
+  # 1. Subset taxonomy and coordinates to only those described UP TO period 'p'
+  current_tax = amphibians_tax %>% filter(period <= p)
+  current_coords = sp_faxes_coord_amphibians0[rownames(sp_faxes_coord_amphibians0) %in% current_tax$scientificName, ]
   
+  # 2. Identify global vertices for this specific time slice
+  v_idx = unique(as.vector(geometry::convhulln(as.matrix(current_coords[,1:4]), options = "Tv")))
+  v_names = rownames(current_coords)[v_idx]
   
-  # 2. Mean Null Curve (Dashed Line)
-  geom_line(
-    data = null_envelope_realm,
-    aes(x = period, y = mean_null),
-    color = "burlywood4",
-    alpha = .9,
-    inherit.aes = FALSE,
-    linetype="dotted"
-  ) +
+  # 3. Count how many vertices each realm contributes
+  period_results[[p]] = current_tax %>%
+    dplyr::filter(scientificName %in% v_names) %>%
+    group_by(realm) %>%
+    summarise(vertex_count = n(), .groups = 'drop') %>%
+    dplyr::mutate(period = p)
+}
+
+vertex_trends = bind_rows(period_results) %>%
+  mutate(year = as.numeric(gsub("p_", "", period)))
+
+main_realms = c("Afrotropical", "Neotropical", "Palearctic", "Indomalayan", "Australasian")
+plot_data = vertex_trends %>% dplyr::filter(realm %in% main_realms) %>%
+  group_by(realm) %>%
+  arrange(year) %>% # Ensure years are in order before summing
+  mutate(vertex_cum = cumsum(vertex_count)) %>%
+  ungroup()
+
+(vertice_plot = ggplot(plot_data, aes(x = year, y = vertex_cum, color = realm)) +
+    geom_line(linewidth = 1) +
+    geom_point() +
+    scale_color_manual(values = realm_colors) +
+    labs(title = "",
+         y = "Number of species in vertices",
+         x = "Time period") +
+    theme_classic(base_size = 16) +
+    theme(legend.title = element_blank(), legend.position = c(.15, .9)))
+
+ggsave("results/SupMat_vertice_plot.jpeg", plot = vertice_plot)
+
+
+# Initialize containers for tracking history
+period_counts_list <- list()
+period_compass_list <- list()
+period_vertices_list <- list()
+
+for (p in periods) {
   
+  # 1. Gather all species described WITHIN specific period 'p' (Not cumulative)
+  current_tax <- amphibians_tax %>% dplyr::filter(period == p) 
+  current_coords <- global_coords[rownames(global_coords) %in% current_tax$scientificName, ]
   
-  # 4. Labels and Theme (rest of the code is correct)
-  labs(
-    x = "Time Period (Year)",
-    y = "Cumulative Functional Richness"
-  ) +
-  scale_x_continuous(breaks = unique(observed_fric_realm$period)) +
-  theme_classic(base_size = 16)
+  # 2. Extract true 4-dimensional global vertices for this era
+  v_idx <- unique(as.vector(convhulln(as.matrix(current_coords[, 1:4]), options = "Tv")))
+  v_names <- rownames(current_coords)[v_idx]
+  
+  # Isolate boundary species data and cleanly split multi-realm strings
+  era_stretchers <- current_tax %>%
+    dplyr::filter(scientificName %in% v_names) %>%
+    dplyr::select(scientificName, realm, year_description) %>%
+    tidyr::separate_rows(realm, sep = "\\|") %>%
+    dplyr::filter(realm %in% names(realm_colors)) %>%
+    dplyr::left_join(tibble::rownames_to_column(current_coords, "scientificName"), by = "scientificName")
+  
+  # Calculates the single "hub" coordinate where all arrows will start in this facet
+  era_global_center <- era_stretchers %>%
+    dplyr::summarise(
+      global_mean_PC1 = mean(PC1, na.rm = TRUE), 
+      global_mean_PC2 = mean(PC2, na.rm = TRUE)  
+    )
+  
+  # 3. Store counts for this era
+  period_counts_list[[p]] <- era_stretchers %>%
+    dplyr::group_by(realm) %>%
+    dplyr::summarise(vertex_count = n(), .groups = "drop") %>%
+    dplyr::mutate(period = p, year = as.numeric(gsub("p_", "", p)))
+  
+  # 4. Store directional centroids (arrows) starting from the Global Era Center
+  period_compass_list[[p]] <- era_stretchers %>%
+    dplyr::group_by(realm) %>%
+    dplyr::summarise(
+      # Baseline starting points
+      x_start       = era_global_center$global_mean_PC1, 
+      y_start       = era_global_center$global_mean_PC2, 
+      
+      # Directional targets (Tips of the arrows)
+      x_end         = mean(PC1, na.rm = TRUE),           
+      y_end         = mean(PC2, na.rm = TRUE),           
+      
+      pull_strength = sqrt(mean(PC1, na.rm = TRUE)^2 + mean(PC2, na.rm = TRUE)^2),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(period = p, year = as.numeric(gsub("p_", "", p)))
+  
+  # Extract outer 2D boundary vertex pins using chull
+  outer_hull_indices <- chull(era_stretchers$PC1, era_stretchers$PC2)
+  
+  period_vertices_list[[p]] <- era_stretchers[outer_hull_indices, ] %>%
+    dplyr::select(scientificName, realm, PC1, PC2) %>% 
+    dplyr::mutate(period = p)
+}
 
-ggsave("results/cum_fric_Indomalayan.jpeg")
+# Combine lists into operational dataframes
+historical_counts           <- dplyr::bind_rows(period_counts_list)
+historical_compass          <- dplyr::bind_rows(period_compass_list)
+historical_compass_vertices <- dplyr::bind_rows(period_vertices_list) 
+
+
+pc1_trend_test = lm(x_end ~ -1 + year * realm, data = historical_compass)
+summary(pc1_trend_test)
+
+
+pc2_trend_test = lm(y_end ~ -1 + year * realm, data = historical_compass)
+summary(pc2_trend_test)
 
 
 
-#### ecological traits ####
+period_hulls <- amphibians_tax %>%
+  tidyr::separate_rows(realm, sep = "\\|") %>%
+  dplyr::filter(realm %in% names(realm_colors)) %>%
+  group_by(period) %>%
+  do({
+    sub_coords <- global_coords[rownames(global_coords) %in% .$scientificName, c("PC1", "PC2")]
+    if(nrow(sub_coords) >= 3) {
+      hull_rows <- chull(sub_coords$PC1, sub_coords$PC2)
+      sub_coords[hull_rows, ]
+    } else {
+      data.frame()
+    }
+  }) %>%
+  ungroup()
+
+facet_labels_per = c(
+  "p_1850" = "Until 1850",
+  "p_1900" = "1851 - 1900",
+  "p_1950" = "1901 - 1950",
+  "p_1975" = "1951 - 1975",
+  "p_2000" = "1976 - 2000",
+  "p_2020" = "2001 - 2020"
+)
+
+arrow_annotation1 = data.frame(
+  period = "p_1850",      
+  x_pos  = -0.16,          
+  y_start = 0.00,          
+  y_end   = -0.10          
+)
+
+arrow_annotation2 = data.frame(
+  period = "p_2020",      
+  y_pos  = 0.09,          
+  x_start = 0.00,          
+  x_end   = 0.10          
+)
+
+# =================================================================
+# PLOT PRODUCTION
+# =================================================================
+ggplot() +
+  # Background cloud of all species
+  geom_point(data = global_coords, aes(x = PC1, y = PC2), color = "grey87", alpha = 0.3, size = 0.8) +
+  
+  # Shaded period hull per facet
+  geom_polygon(data = period_hulls, aes(x = PC1, y = PC2), 
+               fill = "grey50", alpha = 0.09, color = "grey40", linetype = "dashed", linewidth = 0.5) +
+  
+  # Outer boundary vertex dots (Crisp White Outlines to isolate overlaps)
+  geom_point(data = historical_compass_vertices, aes(x = PC1, y = PC2), 
+             color = "black", size = 2.1, alpha = 0.95) +
+  geom_point(data = historical_compass_vertices, aes(x = PC1, y = PC2, color = realm), 
+             size = 1.5, alpha = 0.95) +   
+  
+  # Centroid starburst vectors
+  geom_segment(data = historical_compass, 
+               aes(x = x_start, y = y_start, xend = x_end, yend = y_end, color = realm), 
+               arrow = arrow(length = unit(0.18, "cm")), linewidth = .95) +
+  
+  # Vertical annotation text/arrow
+  geom_segment(data = arrow_annotation1, aes(x = x_pos, y = y_start, xend = x_pos, yend = y_end),
+               arrow = arrow(length = unit(0.17, "cm")), color = "grey30", linewidth = 0.7) +
+  geom_text(data = arrow_annotation1, aes(x = x_pos + 0.014, y = -0.018, 
+                                          label = "smaller size and larger inter-orbital distance"),
+            color = "grey30", size = 2.4, angle = 90, hjust = 0.5, fontface = "bold") +
+  
+  # Horizontal annotation text/arrow
+  geom_segment(data = arrow_annotation2, aes(y = y_pos, x = x_start, xend = x_end, yend = y_pos),
+               arrow = arrow(length = unit(0.17, "cm")), color = "grey30", linewidth = 0.7) +
+  geom_text(data = arrow_annotation2, aes(y = y_pos + 0.01, x = .03, 
+                                          label = "shorter heads, hands, tibias and fingers"),
+            color = "grey30", size = 2.4, angle = 0, hjust = 0.7, fontface = "bold") +
+  
+  # Layout styling
+  scale_color_manual(values = realm_colors) +
+  facet_wrap(~period, labeller = as_labeller(facet_labels_per)) +
+  labs(x = "PC1", y = "PC2") +
+  theme_classic(base_size = 14) +
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.margin    = margin(t = 0, r = 0, b = 0, l = -40, unit = "pt"))
+
+ggsave("results/compass_realm_period_SPECIFIC_vertices_v2.jpeg", height = 7, width = 8)
+
+
+ #### direction corrected end ####
+
+
+
+
+ #### ecological traits ####
 
 
 amphibio0 = read.csv("AmphiBIO_v1.csv") %>% 
@@ -1322,7 +1544,7 @@ amphibio_eco_traits_summ = mFD::sp.tr.summary(
   stop_if_NA = F)
 
 
-sp_dist_amphibio_eco <- mFD::funct.dist(
+sp_dist_amphibio_eco = mFD::funct.dist(
   sp_tr         = amphibio_eco,
   tr_cat        = amphibio3_traits,
   metric        = "gower",
@@ -1333,7 +1555,7 @@ sp_dist_amphibio_eco <- mFD::funct.dist(
 
 fspaces_quality_amphibio_eco = mFD::quality.fspaces(
   sp_dist             = sp_dist_amphibio_eco,
-  maxdim_pcoa         = 10,
+  maxdim_pcoa         = 4,
   deviation_weighting = "absolute",
   fdist_scaling       = FALSE,
   fdendro             = "average")
@@ -1342,7 +1564,7 @@ fspaces_quality_amphibio_eco = mFD::quality.fspaces(
 sp_faxes_coord_amphibio_eco = fspaces_quality_amphibio_eco$"details_fspaces"$"sp_pc_coord" 
 
 
-sp_faxes_coord_amxphibio_eco_all = sp_faxes_coord_amphibio_eco %>% 
+sp_faxes_coord_amphibio_eco_all = sp_faxes_coord_amphibio_eco %>% 
   as.data.frame() %>% 
   dplyr::mutate(scientificName = rownames(.)) %>% 
   dplyr::inner_join(amphibio_eco %>% 
@@ -1352,34 +1574,6 @@ sp_faxes_coord_amphibio_eco2 = sp_faxes_coord_amphibio_eco_all %>%
   dplyr::select(1:11) %>% 
   column_to_rownames("scientificName") %>% 
   as.matrix()
-
-big_plot = mFD::funct.space.plot(
-  sp_faxes_coord  = sp_faxes_coord_amphibio_eco2[ , c("PC1", "PC2", "PC3", "PC4")],
-  faxes           = c("PC1", "PC2", "PC3", "PC4"),
-  name_file       = NULL,
-  faxes_nm        = NULL,
-  range_faxes     = c(NA, NA),
-  color_bg        = "grey99",
-  color_pool      = "black",
-  fill_pool       = "green4",
-  shape_pool      = 21,
-  size_pool       = 1.6,
-  plot_ch         = TRUE,
-  color_ch        = "black",
-  fill_ch         = "white",
-  alpha_ch        = 0.5,
-  plot_vertices   = F, #change to plot vertices
-  color_vert      = "blueviolet",
-  fill_vert       = "blueviolet",
-  shape_vert      = 23,
-  size_vert       = 1,
-  plot_sp_nm      = NULL,
-  nm_size         = 3,
-  nm_color        = "black",
-  nm_fontface     = "plain",
-  check_input     = TRUE)
-
-(big_plot[[1]])
 
 amphibio3_eco = amphibians_eco_imp3_df %>% 
   tibble::rownames_to_column("Species") %>% 
@@ -1533,15 +1727,31 @@ alpha_fd_indices_amphibio_eco2 = alpha_fd_indices_amphibians_eco$functional_dive
 ggsave("results/cum_fric_ecological_morphological.jpeg", width = 9, height = 8)
 
 
-### common species - 645 species
-amphibio2 = amphibians_eco_imp2_df %>% 
+### common species - 632 species
+amphibio2 = amphibio_eco %>% 
+  rownames_to_column("Species") %>% 
   dplyr::inner_join(amphibians_morph3_imp2_df)  %>% 
   dplyr::inner_join(amphibians_tax %>% 
                       dplyr::rename(Species = scientificName) %>% 
-                      dplyr::select(Species, realm, period)) # only 645 species common to morphological and ecological databases
+                      dplyr::select(Species, realm, period)) # only a fraction of species common to morphological and ecological databases
+
+amphibio2_matrix = amphibio2 %>% 
+  dplyr::select(where(is.numeric))
+# Testing correlations
+
+cor_matrix_eco = cor(amphibio2_matrix) # continuous variables not correlated
+
+high_cor_eco = which(abs(cor_matrix_eco) > 0.9 & row(cor_matrix_eco) < col(cor_matrix_eco), arr.ind = TRUE)
+(redundant_pairs = data.frame(
+  trait1 = rownames(cor_matrix_eco)[high_cor[,1]],
+  trait2 = colnames(cor_matrix_eco)[high_cor[,2]],
+  cor = cor_matrix_eco[high_cor]) %>% 
+    arrange(desc(trait1)))
 
 
-### doing so for the same 645 species
+### doing so for shared species across datasets 
+
+
 
 sp_faxes_coord_amphibians_redux = sp_faxes_coord_amphibians %>% 
   as.data.frame() %>% 
@@ -1610,25 +1820,23 @@ alpha_fd_indices_amphibio_eco2_redux = alpha_fd_indices_amphibians_redux_eco$fun
   dplyr::mutate(fric_scaled = fric/max(fric))
 
 
-
-
 (eco_morpho_redux = ggplot() +
   # 1. Plot Ecological Traits (Blue)
   geom_line(data = alpha_fd_indices_amphibio_eco2_redux, 
-            aes(x = year, y = fric_scaled, color = "Ecological Traits"), linewidth = 1.2) +
+            aes(x = year, y = fric_scaled * 100, color = "Ecological Traits"), linewidth = 1.2) +
   geom_point(data = alpha_fd_indices_amphibio_eco2_redux, 
-             aes(x = year, y = fric_scaled, color = "Ecological Traits"), size = 4, alpha = .5) +
+             aes(x = year, y = fric_scaled * 100, color = "Ecological Traits"), size = 4, alpha = .5) +
   # geom_text(data = alpha_fd_indices_amphibio_eco2_redux,
   #           aes(x = year, y = fric_scaled, label = round(sp_richn, 3)), 
   #           vjust = 2, size = 3.5, color = "olivedrab") +
   
   # 2. Plot Morphological Traits (Black)
   geom_line(data = alpha_fd_indices_amphibio_morph_redux, 
-            aes(x = year, y = fric_scaled, color = "Morphological Traits"), linewidth = 1.2) +
+            aes(x = year, y = fric_scaled * 100, color = "Morphological Traits"), linewidth = 1.2) +
   geom_point(data = alpha_fd_indices_amphibio_morph_redux, 
-             aes(x = year, y = fric_scaled, color = "Morphological Traits"), size = 4, alpha = .5) +
+             aes(x = year, y = fric_scaled * 100, color = "Morphological Traits"), size = 4, alpha = .5) +
   geom_text(data = alpha_fd_indices_amphibio_morph_redux, 
-            aes(x = year, y = fric_scaled, label = round(sp_richn, 3)), 
+            aes(x = year, y = fric_scaled*100, label = round(sp_richn, 3)), 
             vjust = -1, size = 3.5, color = "black") +
   
   # 3. Define the Legend Colors Manually
@@ -1638,35 +1846,35 @@ alpha_fd_indices_amphibio_eco2_redux = alpha_fd_indices_amphibians_redux_eco$fun
   
   # 4. Formatting
   labs(x = "Time Period (Year)", y = "") +
-  ylim(c(0, 1)) +
+  ylim(c(0, 100)) +
   theme_classic(base_size = 16) +
   theme(
     axis.title = element_text(size = 12),
     axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "none" #c(.8, .2)
+    legend.position = c(.8, .2)
   ))
 
 
  ggsave("results/cum_fric_ecological_morphological_redux.jpeg")
  
 
- (ecological_morphological = ggarrange(
-   eco_morpho_all,  eco_morpho_redux,
-   ncol = 2, nrow = 1, 
-   labels = c("A", "B"),  
-   widths = c(1, 1.1),    
-   heights = c(1, 1)
- ))
- 
- ggsave("results/Fig_cum_fric_ecological_morphological.jpeg", height = 7, width = 10)
+ # (ecological_morphological = ggarrange(
+ #   eco_morpho_all,  eco_morpho_redux,
+ #   ncol = 2, nrow = 1, 
+ #   labels = c("A", "B"),  
+ #   widths = c(1, 1.1),    
+ #   heights = c(1, 1)
+ # ))
+ # 
+ # ggsave("results/Fig_cum_fric_ecological_morphological.jpeg", height = 7, width = 10)
 
 
 #### uniqueness models ####
 ## FUSE
 
 fuse_amphibians = mFD::fuse(sp_dist_amphibians,
-                            sp_faxes_coord_amphibians[,1:10],
-                                      GE = rep(0.001, 3042)) %>% 
+                            sp_faxes_coord_amphibians[,1:4],
+                                      GE = rep(0.001, nrow(sp_faxes_coord_amphibians))) %>% 
   as.data.frame() %>% 
   tibble::rownames_to_column("Species")
 
@@ -1674,6 +1882,7 @@ fuse_amphibians0 = fuse_amphibians %>%
   dplyr::left_join(amphibians_tax, by = c("Species" = "scientificName")) %>% 
   dplyr::select(Species, FUn_std, FSp_std, realm, year_description)
 
+amphibians_tax
 table(fuse_amphibians0$realm)
 
 library(mgcv)
@@ -1695,131 +1904,163 @@ fuse_amphibians0 = fuse_amphibians0 %>%
 
 n_fuse = nrow(fuse_amphibians0)
 fuse_amphibians0$FUn_std_beta = (fuse_amphibians0$FUn_std * (n_fuse - 1) + 0.5) / n_fuse
+fuse_amphibians0$FSp_std_beta = (fuse_amphibians0$FSp_std * (n_fuse - 1) + 0.5) / n_fuse
+
 
 table(fuse_amphibians0$realm)
 
-gam_beta = mgcv::gam(FUn_std_beta ~ s(year_description, by = realm) + 
-                       s(realm, bs = "re"), 
-                     family = mgcv::betar(link = "logit"), 
-                     data = fuse_amphibians0, 
-                     method = "REML")
 
-
-summary(gam_beta)
-
-plot_predictions(gam_beta, condition = c("year_description", "realm")) +
-  # Create a separate panel for each realm
-  facet_wrap(~realm, scales = "free_y") + 
-  # Add the original data points (rug) to each panel
-  geom_rug(aes(x = year_description), data = fuse_amphibians0, alpha = 0.2, inherit.aes = FALSE) +
-  labs(
-    x = "Year of Description",
-    y = "Predicted Functional Uniqueness"
-  ) +
-  theme_classic() +
-  theme(strip.background = element_blank(), strip.text = element_text(face = "bold")) +
-  coord_cartesian(ylim = c(0, 0.4))
-
-ggsave("results/gam_FUn_year.jpeg", width = 10)
 
 
 realm_colors = c(
-  "Palearctic"   = "indianred",
-  "Neotropical"  = "plum3",
-  "Afrotropical" = "royalblue2",
-  "Indomalayan"  = "tan",
-  "Australasian" = "orange2"
+  "Afrotropical" = "#0072B2",
+  "Australasian" = "#E69F00",
+  "Indomalayan"  = "#009E73",
+  "Neotropical"  = "#CC79A7",
+  "Palearctic"   = "#D55E00"
 )
 
 realm_list = fuse_amphibians0 %>% 
   group_split(realm)
 
 
-walk(realm_list, function(df) {
-  
-  current_realm <- as.character(unique(df$realm))
-  current_color <- ifelse(current_realm %in% names(realm_colors), 
-                          realm_colors[current_realm], 
-                          "#333333")
-  
-  # Generate plot
-  p <- plot_predictions(gam_beta, 
-                        condition = list("year_description", realm = current_realm)) +
-    # Use coord_cartesian to zoom in without discarding data for the model fit
-    coord_cartesian(xlim = c(1850, 2020), ylim = c(0, 0.4)) + 
-    
-    # Ensure rug plot only shows data within your chosen window
-    geom_rug(aes(x = year_description), 
-             data = df %>% filter(year_description >= 1850), 
-             alpha = 0.2, inherit.aes = FALSE) +
-    
-    scale_fill_manual(values = current_color) +
-    scale_color_manual(values = current_color) +
-    labs(
-      x = "Year of Description",
-      y = "Predicted Functional Uniqueness"
-    ) +
-    theme_classic(base_size = 16) +
-    theme(legend.position = "none")
-  
-  # Save
-  file_name <- paste0("results/gam_morphological_fun_", gsub("[| ]", "_", current_realm), ".jpeg")
-  ggsave(file_name, p, width = 8, height = 8, dpi = 300)
-  
-  message("Saved: ", file_name)
-})
+fuse_amphibians0_dif = fuse_amphibians0 %>%
+  mutate(
+    realm_fac  = relevel(as.factor(realm), ref = "Palearctic"),
+    realm_ord  = as.ordered(realm_fac))
 
+gam_fun_diff = gam(
+  FUn_std_beta ~ realm_fac + 
+    s(year_description, k = 10, m = 2) + 
+    s(year_description, by = realm_ord, k = 10, m = 1),
+  data = fuse_amphibians0_dif,
+  family = betar(link = "logit"), 
+  method = "REML"                 
+)
+
+summary(gam_fun_diff)
+
+walk(realm_list, function(df) {
+    
+    current_realm <- as.character(unique(df$realm))
+    
+    current_color <- ifelse(current_realm %in% names(realm_colors), 
+                            realm_colors[current_realm], 
+                            "#333333")
+    
+    x_axis_color = ifelse(current_realm == "Palearctic", "black", "transparent")
+    
+    p = plot_predictions(
+      gam_fun_diff, 
+      condition = list(
+        "year_description", 
+        realm_fac = current_realm, 
+        realm_ord = current_realm  
+      )
+    ) +
+      coord_cartesian(xlim = c(1850, 2020), ylim = c(0, 0.4)) + 
+      
+      geom_rug(aes(x = year_description), 
+               data = df, 
+               alpha = 0.3, inherit.aes = FALSE, sides = "b", length = unit(0.08, "npc")) +
+      
+      scale_fill_manual(values = current_color) +
+      scale_color_manual(values = current_color) +
+      labs(
+        x = "Year of Description",
+        y = ""
+      ) +
+      theme_classic(base_size = 40) +
+      theme(
+        legend.position = "none",
+        strip.background = element_blank(), 
+        strip.text = element_blank(),
+        axis.title.x = element_text(color = x_axis_color),
+      ) +
+      scale_y_continuous(
+        limits = c(0, .4), 
+        breaks = c(0, 0.2, 0.4)) 
+  
+    
+    # 4. Clean saving naming conventions
+    file_name <- paste0("results/gam_morphological_fun_", gsub("[| ]", "_", current_realm), ".jpeg")
+    ggsave(file_name, p,  width = 8, height = 8.5, dpi = 300)
+    
+    message("Saved: ", file_name)
+  })
 
 #functional specialization
 
-fuse_amphibians0$FSp_std_beta = (fuse_amphibians0$FSp_std * (n_fuse - 1) + 0.5) / n_fuse
+# 
+# fuse_amphibians0_dif = fuse_amphibians0 %>%
+#   mutate(
+#     realm_fac  = relevel(as.factor(realm), ref = "Palearctic"),
+#     realm_ord  = as.ordered(realm_fac))
+#     
+# gam_fsp_diff = gam(FSp_std_beta ~ realm_fac + 
+#                      s(year_description, m = 2) + 
+#                      s(year_description, by = realm_ord, m = 1) + 
+#                      s(realm_fac, bs = "re"),
+#                    family = betar(link = "logit"),
+#                    data = fuse_amphibians0_dif,
+#                    method = "REML")
+# 
+# summary(gam_fsp_diff)
+# 
+# 
+# walk(realm_list, function(df) {
+#   
+#   current_realm <- as.character(unique(df$realm))
+#   
+#   current_color <- ifelse(current_realm %in% names(realm_colors), 
+#                           realm_colors[current_realm], 
+#                           "#333333")
+#   
+#   x_axis_color = ifelse(current_realm == "Palearctic", "black", "transparent")
+#   
+#   p <- plot_predictions(
+#     gam_fsp_diff, 
+#     condition = list(
+#       "year_description", 
+#       realm_fac = current_realm, 
+#       realm_ord = current_realm  
+#     )
+#   ) +
+#     coord_cartesian(xlim = c(1850, 2020), ylim = c(0, 0.4)) + 
+#     
+#     geom_rug(aes(x = year_description), 
+#              data = df %>% filter(year_description >= 1850), 
+#              alpha = 0.2, inherit.aes = FALSE) +
+#     
+#     scale_fill_manual(values = current_color) +
+#     scale_color_manual(values = current_color) +
+#     labs(
+#       x = "Year of Description",
+#       y = ""
+#     ) +
+#     theme_classic(base_size = 18) +
+#     theme(
+#       legend.position = "none",
+#       strip.background = element_blank(), 
+#       strip.text = element_blank(),
+#       axis.title.x = element_text(color = x_axis_color),
+#       axis.text.x  = element_text(color = x_axis_color),
+#       axis.ticks.x = element_line(color = x_axis_color)
+#     )
+# 
+#   
+#   # 4. Clean saving naming conventions
+#   file_name <- paste0("results/gam_morphological_fsp_", gsub("[| ]", "_", current_realm), ".jpeg")
+#   ggsave(file_name, p, width = 8, height = 8, dpi = 300)
+#   
+#   message("Saved: ", file_name)
+# })
 
-gam_beta_fsp = mgcv::gam(FSp_std_beta ~ s(year_description, by = realm) + 
-                       s(realm, bs = "re"), 
-                     family = mgcv::betar(link = "logit"), 
-                     data = fuse_amphibians0, 
-                     method = "REML")
 
-
-summary(gam_beta_fsp)
-
-walk(realm_list, function(df) {
-  
-  current_realm <- as.character(unique(df$realm))
-  current_color <- ifelse(current_realm %in% names(realm_colors), 
-                          realm_colors[current_realm], 
-                          "#333333")
-  
-  # Generate plot
-  p <- plot_predictions(gam_beta_fsp, 
-                        condition = list("year_description", realm = current_realm)) +
-    # Use coord_cartesian to zoom in without discarding data for the model fit
-    coord_cartesian(xlim = c(1850, 2020), ylim = c(0, 0.4)) + 
-    
-    # Ensure rug plot only shows data within your chosen window
-    geom_rug(aes(x = year_description), 
-             data = df %>% filter(year_description >= 1850), 
-             alpha = 0.2, inherit.aes = FALSE) +
-    
-    scale_fill_manual(values = current_color) +
-    scale_color_manual(values = current_color) +
-    labs(
-      x = "Year of Description",
-      y = "Predicted Functional Specialization"
-    ) +
-    theme_classic(base_size = 16) +
-    theme(legend.position = "none")
-  
-  # Save
-  file_name <- paste0("results/gam_morphological_fsp_", gsub("[| ]", "_", current_realm), ".jpeg")
-  ggsave(file_name, p, width = 8, height = 8, dpi = 300)
-  
-  message("Saved: ", file_name)
-})
-
+#####
 
 # 1. Setup: identify the minimum species count (Palearctic = 278)
-n_min <- 278
+n_min = sum(fuse_amphibians0$realm == "Palearctic") 
 n_iterations <- 99 # Number of random sub-samples
 
 # 2. Prepare the species list by realm
@@ -1840,7 +2081,7 @@ rarefaction_results <- map_dfr(realm_species_list, function(df_realm) {
                          dimnames = list(realm_name, df_realm$Species))
     
     fric_val <- mFD::alpha.fd.multidim(
-      sp_faxes_coord = sp_faxes_coord_amphibians[, c("PC1", "PC2")],
+      sp_faxes_coord = sp_faxes_coord_amphibians[, c("PC1", "PC2", "PC3", "PC4")],
       asb_sp_w       = asb_matrix,
       ind_vect       = "fric",
       scaling        = TRUE
@@ -1856,7 +2097,7 @@ rarefaction_results <- map_dfr(realm_species_list, function(df_realm) {
                            dimnames = list("temp", random_spp))
       
       mFD::alpha.fd.multidim(
-        sp_faxes_coord = sp_faxes_coord_amphibians[, c("PC1", "PC2")],
+        sp_faxes_coord = sp_faxes_coord_amphibians[, c("PC1", "PC2", "PC3", "PC4")],
         asb_sp_w       = asb_matrix,
         ind_vect       = "fric",
         scaling        = TRUE
@@ -1878,7 +2119,125 @@ ggplot(rarefaction_results, aes(x = reorder(realm, -fric), y = fric, fill = real
   theme_classic() +
   theme(legend.position = "none")
 
-ggsave("results/SuppMat_rarefaction_realm278.jpeg")
+ggsave("results/SuppMat_rarefaction_realm.jpeg")
+
+
+#### Figures #####
+library(sf)
+library(raster)
+library(spatialEco)
+library(purrr)
+library(patchwork)
+library(magick)
+library(grid)
+
+#Citation: Olson, D.M., E. Dinerstein, E.D. Wikramanayake, N.D. Burgess, G.V.N. Powell, E.C. Underwood, J.A. D'Amico, ´
+#I. Itoua, H.E. Strand, J.C. Morrison, C.J. Loucks, T.F. Allnutt, T.H. Ricketts, Y. Kura, J.F. Lamoreux, W.W. Wettengel, P. Hedao, and K.R. Kassem.
+#Terrestrial Ecoregions of the World: A New Map of Life on Earth (PDF, 1.1M) BioScience 51:933-938.
+
+realms0 = read_sf("spatial/terrestrial_realms_v3.gpkg") 
+
+realms2 = realms0  %>% 
+  dplyr::filter(REALM %in% c("PA", "AT", "AA", "IM", "NT"))
+
+
+realm_mapping = c(
+  "PA" = "Palearctic",
+  "AT" = "Afrotropical",
+  "AA" = "Australasian",
+  "IM" = "Indomalayan",
+  "NT" = "Neotropical"
+)
+
+realms_clean = realms2 %>%
+  dplyr::mutate(realm_name = realm_mapping[REALM])
+
+walk(unique(realms_clean$realm_name), function(name) {
+  
+  # Filter strictly to the single realm geometry
+  single_realm_sf <- realms_clean %>% dplyr::filter(realm_name == name)
+  
+  # Dynamically pull the exact bounding box edges for this specific realm
+  bbox <- st_bbox(single_realm_sf)
+  
+  # Fetch your matching publication color code
+  current_color <- realm_colors[name]
+  
+  p_map = ggplot() +
+    # Render the isolated realm polygon
+    geom_sf(data = single_realm_sf, fill = current_color, color = "grey25", linewidth = 0.3) +
+    
+    # -----------------------------------------------------------------
+  # THE FIX: REMOVED EXPAND CORRECTION TO LET GEOMETRY BREATHE NATURALLY
+  # -----------------------------------------------------------------
+  coord_sf(xlim = c(bbox["xmin"], bbox["xmax"]), 
+           ylim = c(bbox["ymin"], bbox["ymax"])) + 
+    
+    # Render the vertical label on the left
+    labs(x = NULL, y = name) + 
+    
+    theme_void(base_size = 20) + 
+    theme(
+      # Standardize the row title placement perfectly to the left
+      axis.title.y = element_text(face = "bold", size = 30, angle = 90, vjust = 0.5, hjust = 0.5),
+      plot.margin = margin(t = 10, r = 10, b = 10, l = 10, unit = "pt")
+    )
+  
+  # Save using uniform square file outputs. 
+  # ggplot will pad the edges with clean whitespace, keeping the maps centered and undistorted.
+  file_name <- paste0("results/map_layout_fixed_", gsub(" ", "_", name), ".jpeg")
+  ggsave(file_name, plot = p_map, width = 6, height = 6, dpi = 300)
+  
+  message("Saved perfectly proportioned map: ", file_name)
+})
+
+
+# 1. Define the exact row sequence matching your target layout
+realm_sequence <- c( "Afrotropical",  "Australasian","Indomalayan","Neotropical", "Palearctic")
+
+# 2. Pre-allocate a list to store our combined rows
+compiled_rows <- list()
+
+for (realm in realm_sequence) {
+  
+  # Sanitize the realm name to match your file saving conventions
+  sanitized_name <- gsub(" ", "_", realm)
+  
+  # Read the 4 individual JPEGs for the current realm row
+  img_map   <- ggplotGrob(ggplot() + annotation_custom(rasterGrob(image_read(paste0("results/map_layout_fixed_", sanitized_name, ".jpeg")))))
+  img_space <- ggplotGrob(ggplot() + annotation_custom(rasterGrob(image_read(paste0("results/funspace_", realm, ".jpeg")))))
+  img_fric  <- ggplotGrob(ggplot() + annotation_custom(rasterGrob(image_read(paste0("results/cum_fric_", realm, ".jpeg")))))
+  img_gam   <- ggplotGrob(ggplot() + annotation_custom(rasterGrob(image_read(paste0("results/gam_morphological_fun_", sanitized_name, ".jpeg")))))
+  
+  # Combine the 4 images horizontally into a single structured row
+  # patchwork alignments ensure their inner canvas borders match exactly
+  compiled_rows[[realm]] <- patchwork::wrap_plots(
+    img_map, img_space, img_fric, img_gam, 
+    ncol = 4
+  ) 
+}
+
+# 3. Stack all 5 rows vertically using patchwork's division operator
+master_panel <- (compiled_rows[[1]] / 
+  compiled_rows[[2]] / 
+  compiled_rows[[3]] / 
+  compiled_rows[[4]] / 
+  compiled_rows[[5]]) & theme(
+    strip.background = element_blank(),
+    strip.text       = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background  = element_rect(fill = "white", color = NA),
+    panel.border     = element_blank()
+  )
+
+master_panel
+
+ggsave("results/figure_realm_v3.svg", 
+       plot = master_panel, 
+       width = 16,     # 4 columns * 4 inches per cell
+       height = 20,    # 5 rows * 4 inches per cell
+       dpi = 300)
+
 ##### research interest #####
 
 # interest
@@ -2237,6 +2596,7 @@ ggsave("results/FSp_publ_glm.jpeg")
 
 
 ##### tadpole traits #####
+library(xlsx)
 
 amphibians_tax3 = read.csv("amphib_names.txt", sep = "\t") %>% 
   dplyr::mutate(Species = paste0(genus," ", species),
@@ -2245,16 +2605,16 @@ amphibians_tax3 = read.csv("amphib_names.txt", sep = "\t") %>%
                 year_description = as.numeric(gsub(",", "",year_description)),
                 year_description = if_else(is.na(year_description), year_described, year_description))
 
-tadpoles1 = read.xlsx("Tadpole data 2025.4.21.xlsx", 2) %>% 
+tadpoles1 = openxlsx::read.xlsx("Tadpole data 2025.4.21.xlsx", 2) %>%  # from literature
   dplyr::select(Species, Stage, TL, BL, BMH, BMW, TaL, MTH, TMH, TMW, DFH, VFH, OD)%>% 
   mutate_at(c("TL", "BL", "BMH", "BMW", "TaL", "MTH", "TMH", "TMW", "DFH", "VFH", "OD"), as.numeric)
-tadpoles2 = read.xlsx("Tadpole data 2025.4.21.xlsx", 3)%>% 
+tadpoles2 = openxlsx::read.xlsx("Tadpole data 2025.4.21.xlsx", 3) %>%  #from measurements
   dplyr::select(Species, Stage, TL, BL, BMH, BMW, TaL, MTH, TMH, TMW, DFH, VFH, OD) %>% 
   mutate_at(c("TL", "BL", "BMH", "BMW", "TaL", "MTH", "TMH", "TMW", "DFH", "VFH", "OD"), as.numeric) %>%   
   bind_rows(tadpoles1) %>%
   dplyr::filter(rowSums(is.na(.)) < 11) %>% 
   group_by(Species) %>% 
-  slice_max(Stage, n = 1) %>% 
+  slice_max(Stage, n = 1) %>%  # selecting the most advanced gosner stage
   group_by(Species) %>% 
   summarise(TL = mean(TL),
             BL = mean(BL),
@@ -2272,6 +2632,8 @@ tadpoles2 = read.xlsx("Tadpole data 2025.4.21.xlsx", 3)%>%
   dplyr::select(-13:-31) %>% 
   dplyr::rename(scientificName = Species) %>% 
   drop_na(year_description)
+
+intersect(tadpoles2$scientificName, amphibians_tax$scientificName)
 
 
 tadpoles_weight = tadpoles2 %>% 
@@ -2324,13 +2686,14 @@ sp_dist_tadpoles <- mFD::funct.dist(
 
 fspaces_quality_tadpoles = mFD::quality.fspaces(
   sp_dist             = sp_dist_tadpoles,
-  maxdim_pcoa         = 10,
+  maxdim_pcoa         = 4,
   deviation_weighting = "absolute",
   fdist_scaling       = FALSE,
   fdendro             = "average")
 
 
-sp_faxes_coord_tadpoles = fspaces_quality_tadpoles$"details_fspaces"$"sp_pc_coord" 
+sp_faxes_coord_tadpoles = fspaces_quality_tadpoles$"details_fspaces"$"sp_pc_coord" %>% 
+  as.matrix()
 
 
 class(sp_faxes_coord_tadpoles)
@@ -2344,7 +2707,7 @@ del = sp_faxes_coord_tadpoles = fspaces_quality_tadpoles$"details_fspaces"$"sp_p
   as.data.frame()
 
 
-big_plot = mFD::funct.space.plot(
+big_plot_tadpoles = mFD::funct.space.plot(
   sp_faxes_coord  = sp_faxes_coord_tadpoles[ , c("PC1", "PC2", "PC3", "PC4")],
   faxes           = c("PC1", "PC2", "PC3", "PC4"),
   name_file       = NULL,
@@ -2370,10 +2733,10 @@ big_plot = mFD::funct.space.plot(
   nm_fontface     = "plain",
   check_input     = TRUE)
 
-big_plot[1]
+big_plot_tadpoles[1]
 
 
-alpha_fd_indices_tadpoles = mFD::alpha.fd.multidim(
+xalpha_fd_indices_tadpoles = mFD::alpha.fd.multidim(
   sp_faxes_coord   = sp_faxes_coord_tadpoles[ , c("PC1", "PC2")],
   asb_sp_w         = tadpoles_weight,
   ind_vect         = c("fdis", "feve", "fric", "fdiv"),
@@ -2678,56 +3041,4 @@ ggplot(observed_fric, aes(x = period, y = fric)) +
   ) +
   scale_x_continuous(breaks = unique(observed_fric$period)) +
   theme_classic(base_size = 16)
-
-
-# --- 1. Define a function to calculate AUC (using trapezoidal rule) ---
-calculate_auc <- function(df) {
-  # Sort by period to ensure correct calculation
-  df <- df %>% arrange(period)
-  
-  # Calculate area using the trapezoidal rule: sum( (y_i + y_{i-1}) / 2 * (x_i - x_{i-1}) )
-  # We use the time periods (x) and the FRic values (y)
-  auc_value <- sum(
-    (df$fric[-1] + df$fric[-length(df$fric)]) / 2 * (df$period[-1] - df$period[-length(df$period)])
-  )
-  return(auc_value)
-}
-
-# --- 2. Calculate AUC for all Null Iterations ---
-null_auc_values <- null_tidy %>%
-  # Group by each simulation iteration
-  dplyr::group_by(iteration) %>%
-  # Apply the AUC calculation function
-  dplyr::summarise(auc = calculate_auc(cur_data())) %>%
-  dplyr::ungroup()
-
-# --- 3. Calculate AUC for the Observed Curve ---
-# Note: You need to rename 'value' to 'fric_value' for the function to work
-observed_auc = observed_fric %>%
-  calculate_auc()
-
-
-# --- 4. Calculate the P-value ---
-# Test if the observed AUC is significantly greater than the null (early species are highly unique)
-p_value_greater <- sum(null_auc_values$auc >= observed_auc) / N_ITERATIONS
-
-# Test if the observed AUC is significantly less than the null (early species are functionally average)
-p_value_lesser <- sum(null_auc_values$auc <= observed_auc) / N_ITERATIONS
-
-# --- 5. Report Results ---
-cat("\n--- AUC Permutation Test Results ---\n")
-cat(paste("Observed AUC:", round(observed_auc, 2), "\n"))
-cat(paste("Mean Null AUC:", round(mean(null_auc_values$auc), 2), "\n"))
-cat(paste("P-value (Observed > Null):", p_value_greater, "\n"))
-cat(paste("P-value (Observed < Null):", p_value_lesser, "\n"))
-
-if (p_value_greater <= 0.05) {
-  cat("Conclusion: The observed FRic accumulation rate is SIGNIFICANTLY faster than expected by random chance (early species were highly unique).\n")
-} else if (p_value_lesser <= 0.05) {
-  cat("Conclusion: The observed FRic accumulation rate is SIGNIFICANTLY slower than expected by random chance.\n")
-} else {
-  cat("Conclusion: The observed FRic accumulation rate is NOT significantly different from random.\n")
-}
-
-
 
